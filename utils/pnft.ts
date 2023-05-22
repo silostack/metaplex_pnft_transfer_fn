@@ -42,8 +42,12 @@ import { encode } from '@msgpack/msgpack';
 import {backOff} from "exponential-backoff";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
+import * as anchor from "@project-serum/anchor";
+
+
 export const fetchNft = async (conn: Connection, mint: PublicKey) => {
   const mplex = new Metaplex(conn);
+  // mplex.programs().all(PROGRAM_OVERRIDES);
   return await mplex
     .nfts()
     .findByMint({ mintAddress: mint, loadJsonMetadata: true });
@@ -254,7 +258,7 @@ export const getTotalComputeIxs = (
 
 export const createFundedWallet = async (
   provider: AnchorProvider,
-  sol: number = 1000
+  sol: number = 10
 ): Promise<Keypair> => {
   const keypair = Keypair.generate();
   //airdrops are funky, best to move from provider wallet
@@ -295,6 +299,8 @@ const _createAndMintPNft = async ({
   ruleSet?: PublicKey | null;
 }) => {
   // --------------------------------------- create
+
+
 
   // metadata account
   const [metadata] = await PublicKey.findProgramAddress(
@@ -359,7 +365,7 @@ const _createAndMintPNft = async ({
     },
   };
 
-  const createIx = createCreateInstruction(accounts, args);
+  const createIx = createCreateInstruction(accounts, args, TMETA_PROG_ID);
 
   // this test always initializes the mint, we we need to set the
   // account to be writable and a signer
@@ -414,9 +420,11 @@ const _createAndMintPNft = async ({
     },
   };
 
-  const mintIx = createMintInstruction(mintAcccounts, mintArgs);
+  const mintIx = createMintInstruction(mintAcccounts, mintArgs, TMETA_PROG_ID);
 
   // --------------------------------------- send
+
+  console.log('sending mint instruction');
 
   await buildAndSendTx({
     provider,
@@ -481,6 +489,9 @@ export const createAndFundATA = async ({
 
   //create a verified collection
   if (collection) {
+
+    console.log(`collection`);
+
     await mplex.nfts().create({
       useNewMint: collection,
       tokenOwner: usedOwner.publicKey,
@@ -499,6 +510,8 @@ export const createAndFundATA = async ({
 
   let metadataAddress, tokenAddress, masterEditionAddress;
   if (programmable) {
+    console.log(`>>>>>> programmable`);
+
     //create programmable nft
     ({ metadataAddress, tokenAddress, masterEditionAddress } =
       await _createAndMintPNft({
@@ -511,7 +524,13 @@ export const createAndFundATA = async ({
         collectionVerified,
         ruleSet: ruleSetAddr,
       }));
+    console.log(`--- minted programmable`);
+    console.log(`--- metadataAddress`, metadataAddress.toBase58());
+    console.log(`--- tokenAddress`, tokenAddress.toBase58());
+    console.log(`--- masterEditionAddress`, masterEditionAddress.toBase58());
+
   } else {
+    console.log(`normal`);
     //create normal nft
     ({ metadataAddress, tokenAddress, masterEditionAddress } = await mplex
       .nfts()
@@ -525,6 +544,8 @@ export const createAndFundATA = async ({
         maxSupply: toBigNumber(1),
         collection: collection?.publicKey,
       }));
+
+    console.log(`minted normal`);
 
     if (collection && collectionVerified) {
       await mplex.nfts().verifyCollection({
@@ -584,4 +605,18 @@ export const createTokenAuthorizationRules = async (
 
   return ruleSetAddress;
 };
+
+export const LISTINGS_SPACE = 'listings';
+
+export const PROFILE = 'profile';
+
+export const findListingPda = (nftMint: PublicKey, progid: PublicKey): [PublicKey, number] => {
+  return anchor.web3.PublicKey.findProgramAddressSync(
+    [
+      nftMint.toBuffer(),
+      Buffer.from(anchor.utils.bytes.utf8.encode(LISTINGS_SPACE)),
+    ],
+    progid,
+  );
+}
 

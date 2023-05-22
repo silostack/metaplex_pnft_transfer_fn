@@ -5,5 +5,9 @@ pub enum ErrorCode {
     #[msg("Bad Metadata")]
     BadMetadata,
     #[msg("Bad Ruleset")]
-    BadRuleset
+    BadRuleset,
+    #[msg("InvalidItem")]
+    InvalidItem,
+    #[msg("TransferBuilderFailed")]
+    TransferBuilderFailed
 }

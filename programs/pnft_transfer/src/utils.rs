@@ -114,6 +114,8 @@ pub fn send_pnft<'info>(
         }
     }
 
+    msg!("authorization data: {:?}", authorization_data);
+
     let transfer_ix = builder
         .build(TransferArgs::V1 {
             amount: 1, //currently 1 only
